@@ -15,7 +15,7 @@ const argv = require("yargs")
 	},(argv) => {
 		main( async () => {
 			const client = await connect(argv, logger);
-			const result = await client.provision(argv["dns-name"], argv["plain-ingress"], argv["secure-ingress"], argv["certificate-name"]);
+			const result = await client.provision(argv["dns-name"], argv["plain-ingress"], argv["certificate-name"]);
 			logger.info("Provisioning: ", result);
 		}, logger)
 	})
