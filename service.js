@@ -83,7 +83,7 @@ function buildWellKnownHTTPService( logger, challenges, args ){
 			logger.info(msg);
 		} }
 	}));
-	app.get( "/.well-known/acme-challenges/:token", function( req, resp ) {
+	app.get( "/.well-known/acme-challenge/:token", function( req, resp ) {
 		const host = req["host"];
 		const token = req.params.token;
 
@@ -140,6 +140,10 @@ async function runService( logger, args ){
 		directoryUrl: acme.directory.letsencrypt.staging,
 		accountKey: await acme.openssl.createPrivateKey()
 	});
+	acmeClient.verifyChallenge = function(){
+		//TODO: This is cheating...because network topology will not always make sense
+		return true;
+	}
 
 	function log(msg){
 		logger.info(msg);
@@ -223,6 +227,10 @@ async function runService( logger, args ){
 				challengeRemoveFn
 			});
 
+			return {
+				key: key,
+				certificate: cert
+			};
 		}
 	};
 	const wellKnown = buildWellKnownHTTPService( logger.child({plane: "challenge"}), letsEncrypt.httpChallenges, args );
