@@ -75,6 +75,10 @@ function buildHTTPControlPlane( core, logger, options ){
 function buildWellKnownHTTPService( logger, greenlock, args ){
 	const app = express();
 	app.use(morgan("short"));
+	app.use( function( req, resp, next) {
+		logger.info("Host: ", req.headers["host"] );
+		next();
+	});
 	app.use(greenlock.middleware());
 	return bindTo(logger, app, args["wellknown-port"], args["wellknown-port"]);
 }
@@ -86,6 +90,7 @@ class Core {
 		this.sites = {};
 		this.irrigationClient = irrigationClient;
 		this.letsEncrypt = letsEncrypt;
+		this.config = config;
 	}
 
 	async provision( name, incomingConfig ){
@@ -96,13 +101,14 @@ class Core {
 			certificateName: incomingConfig.certificateName,
         };
 		this.sites[name] = config;
+		const wellknownTargetPool = this.config["wellknown-target-pool"]
 
 		//Get the metadata we'll need
 		const plainIngress = await this.irrigationClient.describeIngress(config.plainIngress);
 		const rules = await plainIngress.describeRules();
 
 		//Configure the .well-known to target this service
-		rules.unshift({type: "host.path-prefix", host: name, prefix: "/.well-known", target: config["wellknown-target-pool"]});
+		rules.unshift({type: "host.path-prefix", host: name, prefix: "/.well-known", target: wellknownTargetPool });
 		await plainIngress.applyRules(rules);
 
 		const asymmetricPair = await this.letsEncrypt.provision(name);
@@ -117,18 +123,32 @@ async function runService( logger, args ){
 		irrigationClient.useBearerToken( args["irrigation-token"] );
 	}
 
+const ACME = require('acme-v2/compat').ACME.create({
+	debug: true,
+	skipChallengeTest: false
+});
+
 	const greenlock = Greenlock.create({
 		version: "draft-12",
         server: 'https://acme-staging-v02.api.letsencrypt.org/directory',
-        agreeToTerms: true
+        agreeToTerms: true,
+				skipChallengeTest: true,
+				debug: true,
+				acme: ACME
     });
 	const letsEncrypt = {
 		provision: async (domainName) => {
+const ACME = require('acme-v2/compat').ACME.create({
+	debug: true,
+	skipChallengeTest: false
+});
 			const result = await greenlock.register({
 				domains: [domainName],
 				email: args["le-email"],
 				agreeTos: true,
-				rsaKeySize: 2048
+				skipChallengeTest: true,
+				rsaKeySize: 2048,
+				acme: ACME
 			});
 			return {
 				certificate: result.cert,
