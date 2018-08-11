@@ -1,6 +1,6 @@
 
-const bunyan = require("bunyan");
-const logger = bunyan.createLogger({name:"fog-config"});
+const {formattedConsoleLog} = require("junk-bucket/logging-bunyan");
+const logger = formattedConsoleLog("cli");
 
 const {main} = require("junk-bucket");
 

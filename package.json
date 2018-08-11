@@ -9,9 +9,10 @@
   "author": "Mark Eschbach <meschbach@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "acme-client": "2.0.0",
     "bunyan": "1.8.12",
+    "bunyan-format": "0.2.1",
     "express": "4.16.3",
-    "greenlock": "2.3.8",
     "irrigation": "0.4.0",
     "junk-bucket": "1.0.4",
     "morgan": "1.9.0",

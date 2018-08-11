@@ -32,7 +32,11 @@ function bindTo( logger, service, port, iface ){
 
 function buildHTTPControlPlane( core, logger, options ){
 	const app = make_async(express());
-	app.use(morgan("short"));
+	app.use(morgan("short", {
+		stream: {write: (msg) => {
+				logger.info(msg);
+			} }
+	}));
 	app.use(bodyParser.json());
 
 	app.get("/status", (req, resp) => {
@@ -72,18 +76,25 @@ function buildHTTPControlPlane( core, logger, options ){
 	return bindTo(logger, app, options["control-port"], options["control-iface"]);
 }
 
-function buildWellKnownHTTPService( logger, greenlock, args ){
+function buildWellKnownHTTPService( logger, challenges, args ){
 	const app = express();
-	app.use(morgan("short"));
-	app.use( function( req, resp, next) {
-		logger.info("Host: ", req.headers["host"] );
-		next();
-	});
-	app.use(greenlock.middleware());
-	return bindTo(logger, app, args["wellknown-port"], args["wellknown-port"]);
-}
+	app.use(morgan("short", {
+		stream: {write: (msg) => {
+			logger.info(msg);
+		} }
+	}));
+	app.get( "/.well-known/acme-challenges/:token", function( req, resp ) {
+		const host = req["host"];
+		const token = req.params.token;
 
-const Greenlock = require("greenlock");
+		const hostChallenges = challenges[host];
+		const response = hostChallenges[token];
+
+		logger.info("Challenge request: ", {host, token, response});
+		resp.end(response);
+	});
+	return bindTo(logger, app, args["wellknown-port"], args["wellknown-iface"]);
+}
 
 class Core {
 	constructor( irrigationClient, letsEncrypt, config ) {
@@ -117,50 +128,108 @@ class Core {
 	}
 }
 
+const acme = require('acme-client');
+
 async function runService( logger, args ){
 	const irrigationClient = new IrrigationClient(args["irrigation-url"]);
 	if( args["irrigation-token"] ){
 		irrigationClient.useBearerToken( args["irrigation-token"] );
 	}
 
-const ACME = require('acme-v2/compat').ACME.create({
-	debug: true,
-	skipChallengeTest: false
-});
+	const acmeClient = new acme.Client({
+		directoryUrl: acme.directory.letsencrypt.staging,
+		accountKey: await acme.openssl.createPrivateKey()
+	});
 
-	const greenlock = Greenlock.create({
-		version: "draft-12",
-        server: 'https://acme-staging-v02.api.letsencrypt.org/directory',
-        agreeToTerms: true,
-				skipChallengeTest: true,
-				debug: true,
-				acme: ACME
-    });
+	function log(msg){
+		logger.info(msg);
+	}
+
+	function defaultValue( hash, key, defaultValue = {}) {
+		const value = hash[key] || defaultValue;
+		hash[key] = value;
+		return value;
+	}
+
+	function challengeCreateFn(authz, challenge, keyAuthorization) {
+		// logger.info('Challenge requested: ', {authz, challenge, keyAuthorization });
+
+		/* http-01 */
+		if (challenge.type === 'http-01') {
+			const domainName = authz.identifier.value;
+			const tokenName = challenge.token;
+			const tokenPath = tokenName;
+			const tokenContent = keyAuthorization;
+
+			logger.info('HTTP Challenge requested: ', {tokenPath, domainName });
+			const domainChallenges = defaultValue( letsEncrypt.httpChallenges, domainName );
+			domainChallenges[tokenPath] = tokenContent;
+		}
+
+		/* dns-01 */
+		else if (challenge.type === 'dns-01') {
+			const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
+			const recordValue = keyAuthorization;
+
+			log(`Creating TXT record for ${authz.identifier.value}: ${dnsRecord}`);
+
+			/* Replace this */
+			log(`Would create TXT record "${dnsRecord}" with value "${recordValue}"`);
+			// await cloudflare.createRecord(dnsRecord, 'TXT', recordValue);
+		}
+	}
+
+	function challengeRemoveFn(authz, challenge, keyAuthorization) {
+		log('Triggered challengeRemoveFn()');
+
+		/* http-01 */
+		if (challenge.type === 'http-01') {
+			const filePath = `/var/www/html/.well-known/acme-challenges/${challenge.token}`;
+
+			log(`Removing challenge response for ${authz.identifier.value} at path: ${filePath}`);
+
+			/* Replace this */
+			log(`Would remove file on path "${filePath}"`);
+			// await fs.unlink(filePath);
+		}
+
+		/* dns-01 */
+		else if (challenge.type === 'dns-01') {
+			const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
+			const recordValue = keyAuthorization;
+
+			log(`Removing TXT record for ${authz.identifier.value}: ${dnsRecord}`);
+
+			/* Replace this */
+			log(`Would remove TXT record "${dnsRecord}" with value "${recordValue}"`);
+			// await cloudflare.removeRecord(dnsRecord, 'TXT');
+		}
+	}
+
 	const letsEncrypt = {
+		httpChallenges: {},
 		provision: async (domainName) => {
-const ACME = require('acme-v2/compat').ACME.create({
-	debug: true,
-	skipChallengeTest: false
-});
-			const result = await greenlock.register({
-				domains: [domainName],
-				email: args["le-email"],
-				agreeTos: true,
-				skipChallengeTest: true,
-				rsaKeySize: 2048,
-				acme: ACME
+			/* Create CSR */
+			const [key, csr] = await acme.openssl.createCsr({
+				commonName: domainName
 			});
-			return {
-				certificate: result.cert,
-				key: result.privkey
-			}
+
+			/* Certificate */
+			const cert = await acmeClient.auto({
+				csr,
+				email: args["le-email"],
+				termsOfServiceAgreed: true,
+				challengeCreateFn,
+				challengeRemoveFn
+			});
+
 		}
 	};
-	const wellKnown = buildWellKnownHTTPService( logger, greenlock, args );
+	const wellKnown = buildWellKnownHTTPService( logger.child({plane: "challenge"}), letsEncrypt.httpChallenges, args );
 
 
 	const core = new Core( irrigationClient, letsEncrypt, args );
-	const httpControl = buildHTTPControlPlane( core, logger, args );
+	const httpControl = buildHTTPControlPlane( core, logger.child({plane: "control"}), args );
 	const address = await httpControl.at;
     logger.info("Control plane bound to ", address);
     const controlTargetPool = args["control-target-pool"];
@@ -177,7 +246,7 @@ const ACME = require('acme-v2/compat').ACME.create({
     await irrigationClient.registerTarget(
         wellKnownTargetPool,
         args["wellknown-target-name"] || "irrigation-le-wellknown-" + address.port,
-        "http://" + address.host + ":" + address.port );
+        "http://" + wellKnownAddress.host + ":" + wellKnownAddress.port );
 }
 
 const argv = require("yargs")
@@ -197,10 +266,9 @@ const argv = require("yargs")
 	.showHelpOnFail()
 	.argv;
 
-const bunyan = require("bunyan");
-const logger = bunyan.createLogger({name:"fog-config"});
 const {main} = require("junk-bucket");
+const {formattedConsoleLog} = require("junk-bucket/logging-bunyan");
 
-main( async () => {
+main( async (logger) => {
 	await runService(logger, argv);
-}, logger );
+}, formattedConsoleLog("irrigation-lets-encrypt") );
