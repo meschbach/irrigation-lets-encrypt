@@ -136,8 +136,9 @@ async function runService( logger, args ){
 		irrigationClient.useBearerToken( args["irrigation-token"] );
 	}
 
+	const directoryURL = args["le-staging"] ? acme.directory.letsencrypt.staging :  acme.directory.letsencrypt.production;
 	const acmeClient = new acme.Client({
-		directoryUrl: acme.directory.letsencrypt.staging,
+		directoryUrl: directoryURL,
 		accountKey: await acme.openssl.createPrivateKey()
 	});
 	acmeClient.verifyChallenge = function(){
@@ -218,19 +219,23 @@ async function runService( logger, args ){
 				commonName: domainName
 			});
 
-			/* Certificate */
-			const cert = await acmeClient.auto({
-				csr,
-				email: args["le-email"],
-				termsOfServiceAgreed: true,
-				challengeCreateFn,
-				challengeRemoveFn
-			});
+			try {
+				/* Certificate */
+				const cert = await acmeClient.auto({
+					csr,
+					email: args["le-email"],
+					termsOfServiceAgreed: true,
+					challengeCreateFn,
+					challengeRemoveFn
+				});
 
-			return {
-				key: key,
-				certificate: cert
-			};
+				return {
+					key: key,
+					certificate: cert
+				};
+			}catch(e){
+				throw new Error(e.message);
+			}
 		}
 	};
 	const wellKnown = buildWellKnownHTTPService( logger.child({plane: "challenge"}), letsEncrypt.httpChallenges, args );
@@ -270,6 +275,7 @@ const argv = require("yargs")
 	.option("wellknown-target-pool", {describe: "target pool to register within", default: "lets-encrypt-challenge"})
 	.option("wellknown-target-name", {describe: "target name to register as"})
 	// LE Account options
+	.option("le-staging", {description: "Use the Let's Encrypt staging servers", default: false})
 	.option("le-email", {description: "Let's Encrypt E-mail account to use", required:true})
 	.showHelpOnFail()
 	.argv;
