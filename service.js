@@ -97,11 +97,12 @@ function buildWellKnownHTTPService( logger, challenges, args ){
 }
 
 class Core {
-	constructor( irrigationClient, letsEncrypt, config ) {
+	constructor( irrigationClient, letsEncrypt, config, logger ) {
 		this.sites = {};
 		this.irrigationClient = irrigationClient;
 		this.letsEncrypt = letsEncrypt;
 		this.config = config;
+		this.logger = logger;
 	}
 
 	async provision( name, incomingConfig ){
@@ -112,7 +113,7 @@ class Core {
 			certificateName: incomingConfig.certificateName,
         };
 		this.sites[name] = config;
-		const wellknownTargetPool = this.config["wellknown-target-pool"]
+		const wellknownTargetPool = this.config["wellknown-target-pool"];
 
 		//Get the metadata we'll need
 		const plainIngress = await this.irrigationClient.describeIngress(config.plainIngress);
@@ -123,7 +124,8 @@ class Core {
 		await plainIngress.applyRules(rules);
 
 		const asymmetricPair = await this.letsEncrypt.provision(name);
-		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.certificate, asymmetricPair.key );
+		this.logger.info("Asymmetric key genrated: ", asymmetricPair);
+		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.cert, asymmetricPair.key );
 		config.status = "provisioned";
 	}
 }
@@ -231,7 +233,7 @@ async function runService( logger, args ){
 
 				return {
 					key: key,
-					certificate: cert
+					cert: cert
 				};
 			}catch(e){
 				throw new Error(e.message);
@@ -241,7 +243,7 @@ async function runService( logger, args ){
 	const wellKnown = buildWellKnownHTTPService( logger.child({plane: "challenge"}), letsEncrypt.httpChallenges, args );
 
 
-	const core = new Core( irrigationClient, letsEncrypt, args );
+	const core = new Core( irrigationClient, letsEncrypt, args, logger );
 	const httpControl = buildHTTPControlPlane( core, logger.child({plane: "control"}), args );
 	const address = await httpControl.at;
     logger.info("Control plane bound to ", address);
