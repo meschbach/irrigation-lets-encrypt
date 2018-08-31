@@ -125,7 +125,7 @@ class Core {
 
 		const asymmetricPair = await this.letsEncrypt.provision(name);
 		this.logger.info("Asymmetric key genrated: ", asymmetricPair);
-		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.cert, asymmetricPair.key );
+		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.cert.toString(), asymmetricPair.key.toString() );
 		config.status = "provisioned";
 	}
 }
