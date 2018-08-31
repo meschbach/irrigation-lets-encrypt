@@ -26,6 +26,16 @@ const argv = require("yargs")
 			logger.info("Status: ", status);
 		}, logger)
 	} )
+	.command( "generate [domain-names..]", "Requests a certificate for the given domain", (yargs) => {
+		yargs.option("plain-ingress", {description: "HTTP service to be challenged for verification", default: "default"});
+		yargs.positional("domain-names", {description: "Domain names to be verified", type: "array"});
+	}, (argv) => {
+		main( async () => {
+			const client = await connect(argv, logger);
+			const status = await client.generateCertificates( argv["plain-ingress"], argv["domain-names"] );
+			logger.info("Status: ", status);
+		}, logger)
+	})
 	.demandCommand()
 	.showHelpOnFail()
 	.argv;

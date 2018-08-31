@@ -71,6 +71,35 @@ function buildHTTPControlPlane( core, logger, options ){
 		resp.end();
 	});
 
+	app.a_post("/v1/provision", async (req, resp) => {
+		function badRequest(what){
+			resp.status(422);
+			return resp.json({
+				errors: what
+			});
+		}
+		if( !req.body || !req.body.config ){
+			return badRequest({body: ["Expected JSON body with config element"]});
+		}
+		const config = req.body.config;
+		if( !config.plainIngress ){ return badRequest({body:{config: {plainIngress: ["Expected ingress name"]}}}) }
+		if( !config.domainNames ){ return badRequest({body:{config: {domainNames: ["Expected domain names to be validated"]}}}) }
+
+		try {
+			const provisioned = await core.provisionDomains(config.plainIngress, config.domainNames);
+			resp.json({
+				ok: true,
+				provisioned: provisioned
+			});
+		}catch (e) {
+			logger.warn("Failed to provision domains because of error", config, e);
+			resp.status(423);
+			resp.json({
+				letsEncrypt: [e.message]
+			});
+		}
+	});
+
 	return bindTo(logger, app, options["control-port"], options["control-iface"]);
 }
 

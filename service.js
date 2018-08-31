@@ -56,6 +56,7 @@ class Core {
 		this.logger = logger;
 	}
 
+	//TODO: Merge with provisionDomains
 	async provision( name, incomingConfig ){
 		const config = {
             status: "proivsioning",
@@ -77,7 +78,45 @@ class Core {
 		const asymmetricPair = await this.letsEncrypt.provision(name);
 		this.logger.info("Asymmetric key genrated: ", asymmetricPair);
 		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.cert.toString(), asymmetricPair.key.toString() );
+		const context = {
+			cert: asymmetricPair.cert.toString(),
+			key: asymmetricPair.key.toString()
+		};
+		config.context = context;
 		config.status = "provisioned";
+	}
+
+	//TODO: Merge with provision
+	async provisionDomains( ingress, domains ){
+		const config = {
+			status: "proivsioning",
+			plainIngress: ingress,
+			domains: domains
+		};
+		domains.forEach((domain) => {
+			this.sites[domain] = config;
+		});
+		const wellknownTargetPool = this.config["wellknown-target-pool"];
+
+		//Get the metadata we'll need
+		const plainIngress = await this.irrigationClient.describeIngress(config.plainIngress);
+		const rules = await plainIngress.describeRules();
+
+		//Configure the .well-known to target this service
+		domains.forEach((domain) => {
+			rules.unshift({type: "host.path-prefix", host: domain, prefix: "/.well-known", target: wellknownTargetPool });
+		});
+		await plainIngress.applyRules(rules);
+
+		const asymmetricPair = await this.letsEncrypt.provisionDomains(domains);
+		this.logger.info("Asymmetric key genrated: ", asymmetricPair);
+		const context = {
+			cert: asymmetricPair.cert.toString(),
+			key: asymmetricPair.key.toString()
+		};
+		config.context = context;
+		config.status = "provisioned";
+		return context;
 	}
 }
 
@@ -171,6 +210,31 @@ async function runService( logger, args ){
 			/* Create CSR */
 			const [key, csr] = await acme.openssl.createCsr({
 				commonName: domainName
+			});
+
+			try {
+				/* Certificate */
+				const cert = await acmeClient.auto({
+					csr,
+					email: args["le-email"],
+					termsOfServiceAgreed: true,
+					challengeCreateFn,
+					challengeRemoveFn
+				});
+
+				return {
+					key: key,
+					cert: cert
+				};
+			}catch(e){
+				throw new Error(e.message);
+			}
+		},
+		provisionDomains: async (domains) => {
+			/* Create CSR */
+			const [key, csr] = await acme.openssl.createCsr({
+				commonName: domains[0],
+				altNames: domains.slice(1)
 			});
 
 			try {
