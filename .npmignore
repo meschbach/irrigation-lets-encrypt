@@ -1,0 +1,6 @@
+.dockerignore
+.gitignore
+.travis.yml
+Dockerfile
+.idea
+*.tgz
