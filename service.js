@@ -146,7 +146,7 @@ async function runService( logger, args ){
 	acmeClient.verifyChallenge = function(){
 		//TODO: This is cheating...because network topology will not always make sense
 		return true;
-	}
+	};
 
 	function log(msg){
 		logger.info(msg);
