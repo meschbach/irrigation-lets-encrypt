@@ -74,12 +74,19 @@ class ControlClient {
 	async generateCertificates( plainIngress, domainNames ){
     	assert(plainIngress);
     	assert(domainNames);
-    	return await this._postJSON("/v1/provision", {
+    	const response = await this._postJSON("/v1/provision", {
     		config: {
 			    plainIngress,
 			    domainNames
 		    }
 	    });
+    	if( response.errors ){
+    		throw new Error( response.errors );
+	    }
+	    if( !response.ok ){
+	    	throw new Error( "An unexpcted error occured" );
+	    }
+	    return response.provisioned;
 	}
 }
 
