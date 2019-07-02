@@ -76,7 +76,7 @@ class Core {
 		await plainIngress.applyRules(rules);
 
 		const asymmetricPair = await this.letsEncrypt.provision(name);
-		this.logger.info("Asymmetric key genrated: ", asymmetricPair);
+		this.logger.info("Asymmetric key generated: ", asymmetricPair);
 		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.cert.toString(), asymmetricPair.key.toString() );
 		const context = {
 			cert: asymmetricPair.cert.toString(),
