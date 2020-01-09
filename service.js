@@ -201,6 +201,9 @@ async function runService( logger, args ){
 
 	const letsEncrypt = {
 		httpChallenges: {},
+		rateLimiting: {
+			notBefore: 0
+		},
 		provision: async (domainName) => {
 			/* Create CSR */
 			const [key, csr] = await acme.openssl.createCsr({
@@ -226,6 +229,9 @@ async function runService( logger, args ){
 			}
 		},
 		provisionDomains: async (domains) => {
+			if( letsEncrypt.rateLimiting.notBefore >= Date.now() ){
+				throw new Error("Rate limited upstream, breaking circuit to avoid further problems.");
+			}
 			/* Create CSR */
 			const [key, csr] = await acme.openssl.createCsr({
 				commonName: domains[0],
@@ -247,6 +253,7 @@ async function runService( logger, args ){
 					cert: cert
 				};
 			}catch(e){
+				letsEncrypt.rateLimiting.notBefore = Date.now() + (12 * 60 * 1000);
 				throw new Error(e.message);
 			}
 		}
