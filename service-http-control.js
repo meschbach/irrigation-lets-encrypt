@@ -78,6 +78,7 @@ function buildHTTPControlPlane( core, logger, options ){
 			return badRequest({body: ["Expected JSON body with config element"]});
 		}
 		const config = req.body.config;
+		//TODO: Ensure plain ingress is a string
 		if( !config.plainIngress ){ return badRequest({body:{config: {plainIngress: ["Expected ingress name"]}}}) }
 		if( !config.domainNames ){ return badRequest({body:{config: {domainNames: ["Expected domain names to be validated"]}}}) }
 
