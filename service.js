@@ -5,31 +5,18 @@ const EventEmitter = require("events");
 const Future = require("junk-bucket/future");
 const IrrigationClient = require("irrigation").DeltaClient;
 
-function bindTo( logger, service, port, iface ){
-	const listenerAddress = new Future();
+const {listen} = require("junk-bucket/sockets");
 
-	const socket = service.listen( port, iface, () => {
-		const addr = socket.address();
-		const address = addr.address;
-		const host = address == "::" ? "localhost" : address;
-		const port = addr.port;
-        listenerAddress.accept({ host, port });
-	});
-	socket.on("error", (e) => {
-        listenerAddress.reject(e);
-	});
-
-	return {
-		at: listenerAddress.promised,
-		end: () => {
-			socket.end();
-		}
-	}
-}
-
-function buildWellKnownHTTPService( logger, challenges, args ){
+/**
+ * Service for responding to ACME HTTP challenges.
+ * @param context lifecycle binding for the service
+ * @param challenges challenge coordinator
+ * @param args configuration for the service
+ * @returns {Promise<string>} address of the bound service
+ */
+function buildWellKnownHTTPService( context, challenges, args ){
 	const app = express();
-	app.use(morgan_to_logger("short", logger));
+	app.use(morgan_to_logger("short", context.logger));
 	app.get( "/.well-known/acme-challenge/:token", function( req, resp ) {
 		const host = req["host"];
 		const token = req.params.token;
@@ -37,10 +24,10 @@ function buildWellKnownHTTPService( logger, challenges, args ){
 		const hostChallenges = challenges[host];
 		const response = hostChallenges[token];
 
-		logger.info("Challenge request: ", {host, token, response});
+		context.logger.info("Challenge request: ", {host, token, response});
 		resp.end(response);
 	});
-	return bindTo(logger, app, args["wellknown-port"], args["wellknown-iface"]);
+	return listen(context, app, args["wellknown-port"], args["wellknown-iface"]);
 }
 
 class Core {
@@ -264,7 +251,7 @@ async function runService( logger, args ){
 			}
 		}
 	};
-	const wellKnown = buildWellKnownHTTPService( logger.child({plane: "challenge"}), letsEncrypt.httpChallenges, args );
+	const wellKnownAddress = await buildWellKnownHTTPService( serviceContext.subcontext("challenge"), letsEncrypt.httpChallenges, args );
 
 
 	const core = new Core( irrigationClient, letsEncrypt, args, logger );
@@ -278,7 +265,6 @@ async function runService( logger, args ){
 		args["control-target-name"] || "irrigation-le-control-" + address.port,
 		"http://" + address.host + ":" + address.port );
 
-	const wellKnownAddress = await wellKnown.at;
     logger.info("Well Known ", wellKnownAddress);
     const wellKnownTargetPool = args["wellknown-target-pool"];
 	await irrigationClient.createTargetPool(wellKnownTargetPool);
