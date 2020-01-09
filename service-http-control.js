@@ -4,7 +4,7 @@ const {make_async} = require("junk-bucket/express");
 const Future = require("junk-bucket/future");
 
 const express = require("express");
-const morgan = require("morgan");
+const {morgan_to_logger} = require("./junk");
 
 function bindTo( logger, service, port, iface ){
 	const listenerAddress = new Future();
@@ -30,11 +30,7 @@ function bindTo( logger, service, port, iface ){
 
 function buildHTTPControlPlane( core, logger, options ){
 	const app = make_async(express());
-	app.use(morgan("short", {
-		stream: {write: (msg) => {
-				logger.info(msg);
-			} }
-	}));
+	app.use(morgan_to_logger("short", logger));
 	app.use(bodyParser.json());
 
 	app.get("/status", (req, resp) => {

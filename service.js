@@ -1,5 +1,5 @@
 const express = require("express");
-const morgan = require("morgan");
+const {morgan_to_logger} = require("./junk");
 const EventEmitter = require("events");
 
 const Future = require("junk-bucket/future");
@@ -29,11 +29,7 @@ function bindTo( logger, service, port, iface ){
 
 function buildWellKnownHTTPService( logger, challenges, args ){
 	const app = express();
-	app.use(morgan("short", {
-		stream: {write: (msg) => {
-			logger.info(msg);
-		} }
-	}));
+	app.use(morgan_to_logger("short", logger));
 	app.get( "/.well-known/acme-challenge/:token", function( req, resp ) {
 		const host = req["host"];
 		const token = req.params.token;
