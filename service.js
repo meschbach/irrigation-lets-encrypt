@@ -118,13 +118,25 @@ class Core {
 
 const acme = require('acme-client');
 const {buildHTTPControlPlane} = require("./service-http-control");
+const {Context} = require("junk-bucket/context");
 
 async function runService( logger, args ){
+	/*
+	 * Initialize Process Tree
+	 */
+	const serviceContext = new Context("irrigation-lets-encrypt", logger);
+
+	/*
+	 * Setup connection to Irrigation
+	 */
 	const irrigationClient = new IrrigationClient(args["irrigation-url"]);
 	if( args["irrigation-token"] ){
 		irrigationClient.useBearerToken( args["irrigation-token"] );
 	}
 
+	/*
+	 * Setup Let's Encrypt configuration
+	 */
 	const directoryURL = args["le-staging"] ? acme.directory.letsencrypt.staging :  acme.directory.letsencrypt.production;
 	const acmeClient = new acme.Client({
 		directoryUrl: directoryURL,
