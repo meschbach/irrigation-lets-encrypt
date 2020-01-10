@@ -58,15 +58,20 @@ class Core {
 		rules.push({type: "host.path-prefix", host: name, prefix: "/.well-known", target: wellknownTargetPool });
 		await plainIngress.applyRules(rules);
 
-		const asymmetricPair = await this.letsEncrypt.provision(name);
-		this.logger.info("Asymmetric key generated: ", asymmetricPair);
-		await this.irrigationClient.uploadCertificate( config.certificateName, asymmetricPair.cert.toString(), asymmetricPair.key.toString() );
-		const context = {
-			cert: asymmetricPair.cert.toString(),
-			key: asymmetricPair.key.toString()
-		};
-		config.context = context;
-		config.status = "provisioned";
+		try {
+			const asymmetricPair = await this.letsEncrypt.provision(name);
+			this.logger.info("Asymmetric key generated: ", asymmetricPair);
+			await this.irrigationClient.uploadCertificate(config.certificateName, asymmetricPair.cert.toString(), asymmetricPair.key.toString());
+			const context = {
+				cert: asymmetricPair.cert.toString(),
+				key: asymmetricPair.key.toString()
+			};
+			config.context = context;
+			config.status = "provisioned";
+		}finally {
+			const remainingRules = rules.filter((r) => r.target != wellknownTargetPool);
+			await plainIngress.applyRules(remainingRules);
+		}
 	}
 
 	//TODO: Merge with provision
