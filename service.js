@@ -60,7 +60,7 @@ class Core {
 
 		try {
 			const asymmetricPair = await this.letsEncrypt.provision(name);
-			this.logger.info("Asymmetric key generated: ", asymmetricPair);
+			this.logger.debug("Asymmetric key generated: ", asymmetricPair);
 			await this.irrigationClient.uploadCertificate(config.certificateName, asymmetricPair.cert.toString(), asymmetricPair.key.toString());
 			const context = {
 				cert: asymmetricPair.cert.toString(),
@@ -98,7 +98,7 @@ class Core {
 
 		try {
 			const asymmetricPair = await this.letsEncrypt.provisionDomains(domains);
-			this.logger.info("Asymmetric key genrated: ", asymmetricPair);
+			this.logger.debug("Asymmetric key genrated: ", asymmetricPair);
 			const context = {
 				cert: asymmetricPair.cert.toString(),
 				key: asymmetricPair.key.toString()
@@ -144,10 +144,6 @@ async function runService( logger, args ){
 		return true;
 	};
 
-	function log(msg){
-		logger.info(msg);
-	}
-
 	function defaultValue( hash, key, defaultValue = {}) {
 		const value = hash[key] || defaultValue;
 		hash[key] = value;
@@ -155,57 +151,38 @@ async function runService( logger, args ){
 	}
 
 	function challengeCreateFn(authz, challenge, keyAuthorization) {
-		// logger.info('Challenge requested: ', {authz, challenge, keyAuthorization });
-
 		/* http-01 */
 		if (challenge.type === 'http-01') {
 			const domainName = authz.identifier.value;
-			const tokenName = challenge.token;
-			const tokenPath = tokenName;
+			const tokenPath = challenge.token;
 			const tokenContent = keyAuthorization;
 
 			logger.info('HTTP Challenge requested: ', {tokenPath, domainName });
 			const domainChallenges = defaultValue( letsEncrypt.httpChallenges, domainName );
 			domainChallenges[tokenPath] = tokenContent;
-		}
-
-		/* dns-01 */
-		else if (challenge.type === 'dns-01') {
+		} else if (challenge.type === 'dns-01') {
 			const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
 			const recordValue = keyAuthorization;
-
-			log(`Creating TXT record for ${authz.identifier.value}: ${dnsRecord}`);
-
-			/* Replace this */
-			log(`Would create TXT record "${dnsRecord}" with value "${recordValue}"`);
-			// await cloudflare.createRecord(dnsRecord, 'TXT', recordValue);
+			throw new Error("DNS challenge not supproted");
+		} else {
+			throw new Error("Challenge not supported");
 		}
 	}
 
 	function challengeRemoveFn(authz, challenge, keyAuthorization) {
-		log('Triggered challengeRemoveFn()');
+		const dns = authz.identifier.value;
+		const token = challenge.token;
+		logger.info('Removing challenge', {dns, token});
 
 		/* http-01 */
 		if (challenge.type === 'http-01') {
-			const filePath = `/var/www/html/.well-known/acme-challenges/${challenge.token}`;
-
-			log(`Removing challenge response for ${authz.identifier.value} at path: ${filePath}`);
-
-			/* Replace this */
-			log(`Would remove file on path "${filePath}"`);
-			// await fs.unlink(filePath);
-		}
-
-		/* dns-01 */
-		else if (challenge.type === 'dns-01') {
+			delete letsEncrypt.httpChallenges[token];
+		} else if (challenge.type === 'dns-01') {
 			const dnsRecord = `_acme-challenge.${authz.identifier.value}`;
 			const recordValue = keyAuthorization;
-
-			log(`Removing TXT record for ${authz.identifier.value}: ${dnsRecord}`);
-
-			/* Replace this */
-			log(`Would remove TXT record "${dnsRecord}" with value "${recordValue}"`);
-			// await cloudflare.removeRecord(dnsRecord, 'TXT');
+			throw new Error("Not supported");
+		} else {
+			throw new Error("Challenge not supproted");
 		}
 	}
 
@@ -263,6 +240,7 @@ async function runService( logger, args ){
 					cert: cert
 				};
 			}catch(e){
+				logger.error("Unable to issue certificate", e);
 				letsEncrypt.rateLimiting.notBefore = Date.now() + (12 * 60 * 1000);
 				throw new Error(e.message);
 			}
