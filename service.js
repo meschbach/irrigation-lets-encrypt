@@ -55,7 +55,7 @@ class Core {
 		const rules = await plainIngress.describeRules();
 
 		//Configure the .well-known to target this service
-		rules.unshift({type: "host.path-prefix", host: name, prefix: "/.well-known", target: wellknownTargetPool });
+		rules.push({type: "host.path-prefix", host: name, prefix: "/.well-known", target: wellknownTargetPool });
 		await plainIngress.applyRules(rules);
 
 		const asymmetricPair = await this.letsEncrypt.provision(name);
