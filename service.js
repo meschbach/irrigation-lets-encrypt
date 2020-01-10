@@ -288,7 +288,7 @@ async function runService( logger, args ){
     await irrigationClient.registerTarget(
         wellKnownTargetPool,
         args["wellknown-target-name"] || "irrigation-le-wellknown-" + address.port,
-        "http://" + wellKnownAddress.host + ":" + wellKnownAddress.port );
+        "http://" + wellKnownAddress );
 }
 
 const argv = require("yargs")
