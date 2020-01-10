@@ -92,19 +92,24 @@ class Core {
 
 		//Configure the .well-known to target this service
 		domains.forEach((domain) => {
-			rules.unshift({type: "host.path-prefix", host: domain, prefix: "/.well-known", target: wellknownTargetPool });
+			rules.push({type: "host.path-prefix", host: domain, prefix: "/.well-known", target: wellknownTargetPool });
 		});
 		await plainIngress.applyRules(rules);
 
-		const asymmetricPair = await this.letsEncrypt.provisionDomains(domains);
-		this.logger.info("Asymmetric key genrated: ", asymmetricPair);
-		const context = {
-			cert: asymmetricPair.cert.toString(),
-			key: asymmetricPair.key.toString()
-		};
-		config.context = context;
-		config.status = "provisioned";
-		return context;
+		try {
+			const asymmetricPair = await this.letsEncrypt.provisionDomains(domains);
+			this.logger.info("Asymmetric key genrated: ", asymmetricPair);
+			const context = {
+				cert: asymmetricPair.cert.toString(),
+				key: asymmetricPair.key.toString()
+			};
+			config.context = context;
+			config.status = "provisioned";
+			return context;
+		} finally {
+			const remainingRules = rules.filter((r) => r.target != wellknownTargetPool);
+			await plainIngress.applyRules(remainingRules);
+		}
 	}
 }
 
