@@ -134,7 +134,9 @@ async function runService( logger, args ){
 	/*
 	 * Setup Let's Encrypt configuration
 	 */
-	const directoryURL = args["le-staging"] ? acme.directory.letsencrypt.staging :  acme.directory.letsencrypt.production;
+	const directoryURL = args["le-directory"] ? args["le-directory"] :
+		(args["le-staging"] ? acme.directory.letsencrypt.staging :  acme.directory.letsencrypt.production);
+	logger.info("Using LE directory", {url: directoryURL});
 	const acmeClient = new acme.Client({
 		directoryUrl: directoryURL,
 		accountKey: await acme.openssl.createPrivateKey()
@@ -282,6 +284,7 @@ const argv = require("yargs")
 	.option("wellknown-target-pool", {describe: "target pool to register within", default: "lets-encrypt-challenge"})
 	.option("wellknown-target-name", {describe: "target name to register as"})
 	// LE Account options
+	.option("le-directory", {description: "ACME Directory to sign against", default: undefined})
 	.option("le-staging", {description: "Use the Let's Encrypt staging servers", default: false})
 	.option("le-email", {description: "Let's Encrypt E-mail account to use", required:true})
 	.showHelpOnFail()
