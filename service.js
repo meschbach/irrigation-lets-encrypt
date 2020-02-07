@@ -117,6 +117,18 @@ const acme = require('acme-client');
 const {buildHTTPControlPlane} = require("./service-http-control");
 const {Context} = require("junk-bucket/context");
 
+function decideOnACMEDirectory( context, args ) {
+	const specificDirectory =  args["le-directory"];
+	if( specificDirectory ){ return specificDirectory; }
+
+	if( args["le-staging"] ){ return  acme.directory.letsencrypt.staging; }
+
+	const envDirectory = process.env["ACME_DIR"];
+	if( envDirectory ){ return envDirectory }
+
+	return acme.directory.letsencrypt.production;
+}
+
 async function runService( logger, args ){
 	/*
 	 * Initialize Process Tree
@@ -134,8 +146,7 @@ async function runService( logger, args ){
 	/*
 	 * Setup Let's Encrypt configuration
 	 */
-	const directoryURL = args["le-directory"] ? args["le-directory"] :
-		(args["le-staging"] ? acme.directory.letsencrypt.staging :  acme.directory.letsencrypt.production);
+	const directoryURL = decideOnACMEDirectory( serviceContext, args );
 	logger.info("Using LE directory", {url: directoryURL});
 	const acmeClient = new acme.Client({
 		directoryUrl: directoryURL,
