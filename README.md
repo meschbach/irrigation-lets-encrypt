@@ -21,7 +21,15 @@ I recommend you develop against [Pebble](https://github.com/letsencrypt/pebble) 
 expatiate your local development since you'll remove the wait on LE's servers, rate limiting, and otherwise not impact
 the public service they are running.  They don't have an OSX distribution as of the time of writing this, however you'll
 be able to get going with Docker fairly quickly:
-
 ```shell
-docker run -e "PEBBLE_VA_NOSLEEP=1" letsencrypt/pebble
+wget https://raw.githubusercontent.com/letsencrypt/pebble/master/docker-compose.yml
+docker-compose up
 ```
+
+You may need to edit the YAML file if you are on OSX, specifically the following line, to point to your IP address.
+> command: pebble-challtestsrv -defaultIPv6 "" -defaultIPv4 10.32.20.111 
+
+Additionally you'll need to run with the following command line variable set.
+`NODE_TLS_REJECT_UNAUTHORIZED=0` to avoid the Pebble root certificate from being rejected.
+
+
