@@ -88,11 +88,19 @@ class Core {
 
 		//Get the metadata we'll need
 		const plainIngress = await this.irrigationClient.describeIngress(config.plainIngress);
+		const urlString = await plainIngress.address();
+		const url = new URL(urlString);
+		let portSpec;
+		if( url.port == 80 ){
+			portSpec = "";
+		} else {
+			portSpec = ":" + url.port;
+		}
 		const rules = await plainIngress.describeRules();
 
 		//Configure the .well-known to target this service
 		domains.forEach((domain) => {
-			rules.push({type: "host.path-prefix", host: domain, prefix: "/.well-known", target: wellknownTargetPool });
+			rules.push({type: "host.path-prefix", host: domain + portSpec, prefix: "/.well-known", target: wellknownTargetPool });
 		});
 		await plainIngress.applyRules(rules);
 
