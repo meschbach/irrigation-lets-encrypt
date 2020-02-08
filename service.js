@@ -198,6 +198,8 @@ async function runService( logger, args ){
         wellKnownTargetPool,
         args["wellknown-target-name"] || "irrigation-le-wellknown-" + address.port,
         "http://" + wellKnownAddress );
+
+	logger.info("Irrigaiton LE setup and ready.");
 }
 
 const argv = require("yargs")
