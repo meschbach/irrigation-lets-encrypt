@@ -68,7 +68,7 @@ async function runService( logger, args ){
 	logger.info("Using LE directory", {url: directoryURL});
 	const acmeClient = new acme.Client({
 		directoryUrl: directoryURL,
-		accountKey: await acme.openssl.createPrivateKey()
+		accountKey: await acme.openssl.createPrivateKey() //TODO: Accounts should be persistable
 	});
 	acmeClient.verifyChallenge = function(){
 		//TODO: This is cheating...because network topology will not always make sense
