@@ -1,34 +1,17 @@
 let bodyParser = require('body-parser');
 
 const {make_async} = require("junk-bucket/express");
-const Future = require("junk-bucket/future");
+const {Future} = require("junk-bucket/future");
+const {listen} = require("junk-bucket/sockets");
 
 const express = require("express");
 const {morgan_to_logger} = require("./junk");
 
-function bindTo( logger, service, port, iface ){
-	const listenerAddress = new Future();
+function buildHTTPControlPlane( core, logger, options, serviceContext ){
+	//Extract options
+	const controlPort = options["control-port"];
+	const controlInterface = options["control-iface"];
 
-	const socket = service.listen( port, iface, () => {
-		const addr = socket.address();
-		const address = addr.address;
-		const host = address == "::" ? "localhost" : address;
-		const port = addr.port;
-		listenerAddress.accept({ host, port });
-	});
-	socket.on("error", (e) => {
-		listenerAddress.reject(e);
-	});
-
-	return {
-		at: listenerAddress.promised,
-		end: () => {
-			socket.end();
-		}
-	}
-}
-
-function buildHTTPControlPlane( core, logger, options ){
 	const app = make_async(express());
 	app.use(morgan_to_logger("short", logger));
 	app.use(bodyParser.json());
@@ -97,7 +80,8 @@ function buildHTTPControlPlane( core, logger, options ){
 		}
 	});
 
-	return bindTo(logger, app, options["control-port"], options["control-iface"]);
+	//Bind to the target
+	const addressPromise = listen(serviceContext, app, controlPort, controlInterface);
 }
 
 module.exports = {

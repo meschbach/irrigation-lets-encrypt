@@ -47,12 +47,7 @@ function decideOnACMEDirectory( context, args ) {
 	return acme.directory.letsencrypt.production;
 }
 
-async function runService( logger, args ){
-	/*
-	 * Initialize Process Tree
-	 */
-	const serviceContext = new Context("irrigation-lets-encrypt", logger);
-
+async function runService( logger, args, serviceContext ){
 	/*
 	 * Setup connection to Irrigation
 	 */
@@ -181,8 +176,7 @@ async function runService( logger, args ){
 
 
 	const core = new Core( irrigationClient, letsEncrypt, args, logger );
-	const httpControl = buildHTTPControlPlane( core, logger.child({plane: "control"}), args );
-	const address = await httpControl.at;
+	const httpControl = await buildHTTPControlPlane( core, logger.child({plane: "control"}), args );
     logger.info("Control plane bound to ", address);
     const controlTargetPool = args["control-target-pool"];
     await irrigationClient.createTargetPool(controlTargetPool);
@@ -224,6 +218,14 @@ const argv = require("yargs")
 const {main} = require("junk-bucket");
 const {formattedConsoleLog} = require("junk-bucket/logging-bunyan");
 
+const NAME = "irrigation-lets-encrypt";
 main( async (logger) => {
-	await runService(logger, argv);
-}, formattedConsoleLog("irrigation-lets-encrypt") );
+	const serviceContext = new Context(NAME, logger);
+	await runService(logger, argv, serviceContext);
+
+	const shutdown = () => {
+		serviceContext.cleanup();
+	};
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
+}, formattedConsoleLog(NAME) );
