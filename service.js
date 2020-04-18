@@ -217,6 +217,7 @@ const argv = require("yargs")
 
 const {main} = require("junk-bucket");
 const {formattedConsoleLog} = require("junk-bucket/logging-bunyan");
+const {tracingInit} = require("junk-bucket/express-opentracing");
 
 const NAME = "irrigation-lets-encrypt";
 main( async (logger) => {
@@ -226,9 +227,14 @@ main( async (logger) => {
 	const serviceContext = new Context(NAME, logger);
 
 	/*
-	 * Setup the service
+	 * OpenTracing
 	 */
-	await runService(logger, argv, serviceContext);
+	if( process.env.JAEGER_SERVICE ) {
+		const tracer = tracingInit(serviceContext);
+		serviceContext.opentracing = {
+			tracer
+		}
+	}
 
 	/*
 	 * Graceful shutdown and container shutdown
