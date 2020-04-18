@@ -81,7 +81,7 @@ function buildHTTPControlPlane( core, logger, options, serviceContext ){
 	});
 
 	//Bind to the target
-	const addressPromise = listen(serviceContext, app, controlPort, controlInterface);
+	return listen(serviceContext, app, controlPort, controlInterface);
 }
 
 module.exports = {
