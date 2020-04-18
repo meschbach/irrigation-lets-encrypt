@@ -220,9 +220,19 @@ const {formattedConsoleLog} = require("junk-bucket/logging-bunyan");
 
 const NAME = "irrigation-lets-encrypt";
 main( async (logger) => {
+	/*
+	 * Setup service context
+	 */
 	const serviceContext = new Context(NAME, logger);
+
+	/*
+	 * Setup the service
+	 */
 	await runService(logger, argv, serviceContext);
 
+	/*
+	 * Graceful shutdown and container shutdown
+	 */
 	const shutdown = () => {
 		serviceContext.cleanup();
 	};
