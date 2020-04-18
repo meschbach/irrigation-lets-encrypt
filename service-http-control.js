@@ -5,7 +5,7 @@ const {Future} = require("junk-bucket/future");
 const {listen} = require("junk-bucket/sockets");
 
 const express = require("express");
-const {morgan_to_logger} = require("./junk");
+const {logMorganToContext} = require("junk-bucket/express-morgan");
 
 function buildHTTPControlPlane( core, logger, options, serviceContext ){
 	//Extract options
@@ -13,7 +13,7 @@ function buildHTTPControlPlane( core, logger, options, serviceContext ){
 	const controlInterface = options["control-iface"];
 
 	const app = make_async(express());
-	app.use(morgan_to_logger("short", logger));
+	app.use(logMorganToContext(serviceContext, "short"));
 	app.use(bodyParser.json());
 
 	app.get("/status", (req, resp) => {
