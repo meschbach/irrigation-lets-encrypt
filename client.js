@@ -1,6 +1,6 @@
 
 const assert = require("assert");
-const Future = require("junk-bucket/future");
+const {Future} = require("junk-bucket/future");
 const rp = require("request-promise-native");
 
 class ControlClient {
