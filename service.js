@@ -244,4 +244,14 @@ main( async (logger) => {
 	};
 	process.on("SIGINT", shutdown);
 	process.on("SIGTERM", shutdown);
+
+	/*
+	 * Setup the service
+	 */
+	try {
+		await runService(logger, argv, serviceContext);
+	}catch (e) {
+		serviceContext.logger.error("Failed to initalize service", e);
+		shutdown();
+	}
 }, formattedConsoleLog(NAME) );
