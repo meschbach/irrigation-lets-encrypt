@@ -1,3 +1,5 @@
+const assert = require("assert");
+
 let bodyParser = require('body-parser');
 
 const {make_async} = require("junk-bucket/express");
@@ -8,6 +10,8 @@ const express = require("express");
 const {logMorganToContext} = require("junk-bucket/express-morgan");
 
 function buildHTTPControlPlane( core, logger, options, serviceContext ){
+	assert(serviceContext);
+
 	//Extract options
 	const controlPort = options["control-port"];
 	const controlInterface = options["control-iface"];
