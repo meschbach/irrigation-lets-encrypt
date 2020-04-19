@@ -7,6 +7,7 @@ const {Future} = require("junk-bucket/future");
 const {listen} = require("junk-bucket/sockets");
 
 const express = require("express");
+const {tracingMiddleware} = require("junk-bucket/express-opentracing");
 const {logMorganToContext} = require("junk-bucket/express-morgan");
 
 function buildHTTPControlPlane( core, logger, options, serviceContext ){
@@ -18,6 +19,7 @@ function buildHTTPControlPlane( core, logger, options, serviceContext ){
 
 	const app = make_async(express());
 	app.use(logMorganToContext(serviceContext, "short"));
+	app.use(tracingMiddleware());
 	app.use(bodyParser.json());
 
 	app.get("/status", (req, resp) => {

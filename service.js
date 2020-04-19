@@ -1,4 +1,5 @@
 const express = require("express");
+const {tracingMiddleware} = require("junk-bucket/express-opentracing");
 const {logMorganToContext} = require("junk-bucket/express-morgan");
 const EventEmitter = require("events");
 
@@ -17,6 +18,7 @@ const {listen} = require("junk-bucket/sockets");
 function buildWellKnownHTTPService( context, challenges, args ){
 	const app = express();
 	app.use(logMorganToContext(context,"short"));
+	app.use(tracingMiddleware());
 	app.get( "/.well-known/acme-challenge/:token", function( req, resp ) {
 		const host = req["host"];
 		const token = req.params.token;
