@@ -16,6 +16,9 @@ const {listen} = require("junk-bucket/sockets");
  * @returns {Promise<string>} address of the bound service
  */
 function buildWellKnownHTTPService( context, challenges, args ){
+	const wellknownPort = args["wellknown-port"];
+	const wellknownAddress = args["wellknown-address"];
+
 	const app = express();
 	app.use(logMorganToContext(context,"short"));
 	app.use(tracingMiddleware());
@@ -29,7 +32,7 @@ function buildWellKnownHTTPService( context, challenges, args ){
 		context.logger.info("Challenge request: ", {host, token, response});
 		resp.end(response);
 	});
-	return listen(context, app, args["wellknown-port"], args["wellknown-iface"]);
+	return listen(context, app, wellknownPort, wellknownAddress);
 }
 
 const acme = require('acme-client');
