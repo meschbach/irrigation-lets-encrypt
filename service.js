@@ -236,6 +236,7 @@ main( async (logger) => {
 	 * OpenTracing
 	 */
 	if( process.env.JAEGER_SERVICE ) {
+		serviceContext.logger.info("Activating Jaeger", {name: process.env.JAEGER_SERVICE});
 		const tracer = tracingInit(serviceContext);
 		serviceContext.opentracing = {
 			tracer
