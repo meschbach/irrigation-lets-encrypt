@@ -182,13 +182,13 @@ async function runService( logger, args, serviceContext ){
 
 	const core = new Core( irrigationClient, letsEncrypt, args, logger );
 	const httpControlAddress = await buildHTTPControlPlane( core, logger.child({plane: "control"}), args, serviceContext );
-    logger.info("Control plane bound to ", httpControlAddress);
+    logger.info("Control plane bound to ", {address: httpControlAddress});
     const controlTargetPool = args["control-target-pool"];
     await irrigationClient.createTargetPool(controlTargetPool);
     await irrigationClient.registerTarget(
     	controlTargetPool,
 		args["control-target-name"] || "irrigation-le-control-" + httpControlAddress.port,
-		"http://" + httpControlAddress.host + ":" + httpControlAddress.port );
+		"http://" + httpControlAddress );
 
     logger.info("Well Known ", wellKnownAddress);
     const wellKnownTargetPool = args["wellknown-target-pool"];
